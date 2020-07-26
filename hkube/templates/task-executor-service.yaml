@@ -1,0 +1,19 @@
+kind: Service
+apiVersion: v1
+metadata:
+  name: task-executor
+  annotations:
+    prometheus.io/scrape: "true"
+  labels:
+    app: task-executor
+    group: {{ .Values.labels.group.value }}
+    core: "true"
+    metrics: "true"
+spec:
+  selector:
+    app: task-executor
+  clusterIP: None
+  ports:
+    - name: metrics
+      port: {{ index .Values "task_executor" "env" "metric_port" }}
+      targetPort: {{ index .Values "task_executor" "env" "metric_port" }}

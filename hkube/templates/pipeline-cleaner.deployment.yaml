@@ -1,0 +1,31 @@
+apiVersion: batch/v1beta1
+kind: CronJob
+metadata:
+  name: pipeline-cleaner
+  labels:
+    group: {{ .Values.labels.group.value }}
+    core: "true"
+    app: "pipeline-cleaner"
+spec:
+  schedule: {{ .Values.pipeline_cleaner.pattern | quote }} 
+  startingDeadlineSeconds: 200
+  jobTemplate:
+    spec:
+      template:
+        metadata:
+          labels:
+            app: "pipeline-cleaner"
+        spec:
+          containers:
+          - name: pipeline-cleaner
+            image: "{{ .Values.global.registry }}{{ index  .Values "pipeline_cleaner" "image" "repository" }}:{{ index .Values "pipeline_cleaner" "image" "tag" }}"
+            resources:
+{{ toYaml .Values.pipeline_cleaner.resources | indent 14 }} 
+            env:
+              - name: NAMESPACE
+                valueFrom:
+                  fieldRef:
+                    fieldPath: metadata.namespace
+          restartPolicy: Never
+
+          

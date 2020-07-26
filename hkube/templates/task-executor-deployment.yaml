@@ -1,0 +1,124 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: task-executor
+  labels:
+    app: task-executor
+    scale-group: task-executor
+    group: {{ .Values.labels.group.value }}
+    core: "true"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: task-executor
+  template:
+    metadata:
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/configmaps/task-executor-cm.yaml") . | sha256sum }}
+      labels:
+        app: task-executor
+        group: {{ .Values.labels.group.value }}
+    spec:
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: task-executor-serviceaccount
+      containers:
+        - name: task-executor
+          image: "{{ .Values.global.registry }}{{ .Values.task_executor.image.repository }}:{{ .Values.task_executor.image.tag }}"
+{{- if .Values.task_executor.healthcheck.enabled }}
+          livenessProbe:
+            httpGet:
+              path: {{ .Values.task_executor.healthcheck.path }}
+              port: {{ .Values.task_executor.healthcheck.port }}
+            initialDelaySeconds: {{ .Values.task_executor.healthcheck.initialDelaySeconds }}
+            periodSeconds: {{ .Values.task_executor.healthcheck.periodSeconds }}
+            timeoutSeconds: {{ .Values.task_executor.healthcheck.timeoutSeconds }}
+            failureThreshold: {{ .Values.task_executor.healthcheck.failureThreshold }}
+{{- end }}
+          resources:
+{{ toYaml .Values.task_executor.resources | indent 12 }} 
+          ports:
+            - containerPort: {{ .Values.task_executor.env.metric_port }}
+          env:
+            - name: NODE_ENV
+              valueFrom:
+                configMapKeyRef:
+                  name: task-executor-configmap
+                  key: NODE_ENV
+            - name: IS_PRIVILEGED
+              valueFrom:
+                configMapKeyRef:
+                  name: task-executor-configmap
+                  key: IS_PRIVILEGED
+            - name: IS_NAMESPACED
+              valueFrom:
+                configMapKeyRef:
+                  name: task-executor-configmap
+                  key: IS_NAMESPACED
+            - name: PIPELINE_DRIVERS_AMOUNT
+              valueFrom:
+                configMapKeyRef:
+                  name: task-executor-configmap
+                  key: PIPELINE_DRIVERS_AMOUNT
+            - name: METRICS_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: task-executor-configmap
+                  key: METRICS_PORT
+{{- if .Values.global.isPrivileged }}            
+            - name: JAEGER_AGENT_SERVICE_HOST
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.hostIP
+{{- else if .Values.jaeger.external_agent_address }}
+            - name: JAEGER_AGENT_SERVICE_HOST
+              value: .Values.jaeger.external_agent_address
+{{- end }}                  
+            - name: DEFAULT_STORAGE
+              valueFrom:
+                configMapKeyRef:
+                  name: task-executor-configmap
+                  key: DEFAULT_STORAGE
+            - name: STORAGE_ENCODING
+              valueFrom:
+                configMapKeyRef:
+                  name: task-executor-configmap
+                  key: STORAGE_ENCODING                  
+            - name: BASE_FS_ADAPTER_DIRECTORY
+              valueFrom:
+                configMapKeyRef:
+                  name: task-executor-configmap
+                  key: BASE_FS_ADAPTER_DIRECTORY
+            - name: WORKER_SOCKET_MAX_PAYLOAD_BYTES
+              valueFrom:
+                configMapKeyRef:
+                  name: task-executor-configmap
+                  key: WORKER_SOCKET_MAX_PAYLOAD_BYTES
+            - name: HAS_NODE_LIST
+              valueFrom:
+                configMapKeyRef:
+                  name: task-executor-configmap
+                  key: HAS_NODE_LIST
+            - name: NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: WORKER_MEMORY
+              value: {{ .Values.task_executor.env.worker_memory | quote}}
+            - name: WORKER_CPU
+              value: {{ .Values.task_executor.env.worker_cpu | quote}}
+            - name: RESOURCES_ENABLE
+              value: {{ .Values.task_executor.env.resources_enable | quote}}        
+            - name: INTERVAL_MS
+              value: {{ .Values.task_executor.env.interval | quote}}
+            - name: LOG_EXTERNAL_REQUESTS
+              value: {{ .Values.task_executor.env.log_external_requests | quote}}
+            - name: DEFAULT_QUOTA_CPU
+              value: {{ .Values.task_executor.env.default_quota_cpu | quote}}
+            - name: DEFAULT_QUOTA_MEM
+              value: {{ .Values.task_executor.env.default_quota_mem | quote}}
+            - name: DEFAULT_QUOTA_GPU
+              value: {{ .Values.task_executor.env.default_quota_gpu | quote}}             

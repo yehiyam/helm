@@ -1,0 +1,19 @@
+kind: Service
+apiVersion: v1
+metadata:
+  name: pipeline-driver-queue
+  annotations:
+    prometheus.io/scrape: "true"
+  labels:
+    app: pipeline-driver-queue
+    group: {{ .Values.labels.group.value }}
+    core: "true"
+    metrics: "true"
+spec:
+  selector:
+    app: pipeline-driver-queue
+  clusterIP: None
+  ports:
+    - name: metrics
+      port: {{ index .Values "pipeline_driver_queue" "env" "metric_port" }}
+      targetPort: {{ index .Values "pipeline_driver_queue" "env" "metric_port" }}

@@ -1,0 +1,137 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api-server
+  labels:
+    app: api-server
+    release: {{ .Release.Name }}
+    heritage: {{ .Release.Service }}
+    group: {{ .Values.labels.group.value }}
+    core: "true"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: api-server
+      release: api-server
+  template:
+    metadata:
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/configmaps/api-server-cm.yaml") . | sha256sum }}
+      labels:
+        app: api-server
+        release: api-server
+        group: {{ .Values.labels.group.value }}
+    spec:
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      volumes:
+        - name: uploads
+          emptyDir: {}
+{{- if eq .Values.env.default_storage "fs" }}
+        - name: storage-volume
+          persistentVolumeClaim:
+            claimName: hkube-storage-pvc
+{{- end }}                                    
+      containers:
+        - name: api-server
+          image: "{{ .Values.global.registry }}{{ index .Values "api_server" "image" "repository" }}:{{ index .Values "api_server" "image" "tag" }}"
+          imagePullPolicy: {{ index .Values "image" "pullPolicy" }}
+          resources:
+{{ toYaml .Values.api_server.resources | indent 12 }} 
+          volumeMounts:
+            - name: uploads
+              mountPath: /hkube/api-server/uploads
+{{- if eq .Values.env.default_storage "fs" }}
+            - name: storage-volume
+              mountPath: {{ .Values.global.storage.fs.base_directory | quote}}
+{{- end }}                                    
+          ports:
+            - containerPort: {{ index .Values "api_server" "env" "metric_port" }}
+              protocol: TCP
+            - containerPort: {{ index .Values "api_server" "env" "port" }}
+              protocol: TCP
+          env:
+            - name: METRICS_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: api-server-configmap
+                  key: METRICS_PORT
+            - name: API_SERVER_REST_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: api-server-configmap
+                  key: PORT
+            - name: NODE_ENV
+              valueFrom:
+                configMapKeyRef:
+                  name: api-server-configmap
+                  key: NODE_ENV
+            - name: BASE_URL_PATH
+              valueFrom:
+                configMapKeyRef:
+                  name: api-server-configmap
+                  key: BASE_URL_PATH
+{{- if eq .Values.env.default_storage "fs" }}
+            - name: BASE_FS_ADAPTER_DIRECTORY
+              valueFrom:
+                configMapKeyRef:
+                  name: api-server-configmap
+                  key: BASE_FS_ADAPTER_DIRECTORY
+{{- else if eq .Values.env.default_storage "s3" }}
+            - name: AWS_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: s3-secret
+                  key: awsKey
+            - name: AWS_SECRET_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: s3-secret
+                  key: awsSecret
+            - name: S3_ENDPOINT_URL
+              valueFrom:
+                secretKeyRef:
+                  name: s3-secret
+                  key: awsEndpointUrl
+{{- end }}                                    
+            - name: DEFAULT_STORAGE
+              valueFrom:
+                configMapKeyRef:
+                  name: api-server-configmap
+                  key: DEFAULT_STORAGE
+            - name: STORAGE_ENCODING
+              valueFrom:
+                configMapKeyRef:
+                  name: api-server-configmap
+                  key: STORAGE_ENCODING                  
+            - name: CLUSTER_NAME
+              valueFrom:
+                configMapKeyRef:
+                  name: api-server-configmap
+                  key: CLUSTER_NAME
+            - name: PIPELINE_DRIVER_CPU
+              valueFrom:
+                configMapKeyRef:
+                  name: api-server-configmap
+                  key: PIPELINE_DRIVER_CPU
+            - name: PIPELINE_DRIVER_MEM
+              valueFrom:
+                configMapKeyRef:
+                  name: api-server-configmap
+                  key: PIPELINE_DRIVER_MEM
+{{- if .Values.global.isPrivileged }}            
+            - name: JAEGER_AGENT_SERVICE_HOST
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.hostIP
+{{- else if .Values.jaeger.external_agent_address }}
+            - name: JAEGER_AGENT_SERVICE_HOST
+              value: .Values.jaeger.external_agent_address
+{{- end }}    
+            - name: NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace

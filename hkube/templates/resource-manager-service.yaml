@@ -1,0 +1,19 @@
+kind: Service
+apiVersion: v1
+metadata:
+  name: resource-manager
+  annotations:
+    prometheus.io/scrape: "true"
+  labels:
+    app: resource-manager
+    group: {{ .Values.labels.group.value }}
+    core: "true"
+    metrics: "true"
+spec:
+  selector:
+    app: resource-manager
+  clusterIP: None
+  ports:
+    - name: metrics
+      port: {{ index .Values "resource_manager" "env" "metric_port" }}
+      targetPort: {{ index .Values "resource_manager" "env" "metric_port" }}

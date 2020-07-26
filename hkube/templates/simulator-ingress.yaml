@@ -1,0 +1,65 @@
+{{- if index .Values "simulator" "ingress" "enabled" -}}
+{{- $fullName := "simulator" -}}
+{{- $servicePort := index .Values "simulator" "env" "metric_port" -}}
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: dashboard
+  annotations:
+{{- if .Values.simulator.ingress.alt_path }}
+    nginx.ingress.kubernetes.io/configuration-snippet: |
+      if ( $request_filename ~ {{ .Values.global.ingress.prefix }}{{ .Values.simulator.ingress.alt_path }} ){
+        rewrite ^ {{ .Values.global.ingress.prefix }}{{ .Values.simulator.ingress.path }}/ permanent;
+      }
+{{- end }}      
+{{- if .Values.global.ingress.use_regex }}
+    nginx.ingress.kubernetes.io/rewrite-target: /$2
+{{- else }}
+    nginx.ingress.kubernetes.io/rewrite-target: /
+{{- end }}
+    nginx.ingress.kubernetes.io/ssl-redirect: {{ .Values.global.ingress.requireTls | quote }}
+{{- if .Values.global.ingress.hostname }}
+    kubernetes.io/tls-acme: "true"
+{{- end }}
+  labels:
+    app: simulator
+    release: {{ .Release.Name }}
+    heritage: {{ .Release.Service }}
+    group: {{ .Values.labels.group.value }}
+    core: "true"
+spec:
+{{- if .Values.global.ingress.hostname }}
+  tls:
+  - hosts:
+    - {{ .Values.global.ingress.hostname }}
+    secretName: {{ $fullName }}-tls-secret
+{{- end }}
+  rules:
+    - http:
+        paths:
+{{- if .Values.global.ingress.use_regex }}
+        - path: {{ .Values.global.ingress.prefix }}{{ .Values.simulator.ingress.path }}(/|$)(.*)
+{{- else }}
+        - path: {{ .Values.global.ingress.prefix }}{{ .Values.simulator.ingress.path }}
+{{- end }}
+          backend:
+            serviceName: {{ $fullName }}
+            servicePort: {{ $servicePort }}
+{{- if .Values.simulator.ingress.alt_path }}
+{{- if .Values.global.ingress.use_regex }}
+        - path: {{ .Values.global.ingress.prefix }}{{ .Values.simulator.ingress.alt_path }}(/|$)(.*)
+{{- else }}
+        - path: {{ .Values.global.ingress.prefix }}{{ .Values.simulator.ingress.alt_path }}
+{{- end }}
+          backend:
+            serviceName: {{ $fullName }}
+            servicePort: {{ $servicePort }}
+{{- end }}
+
+{{- if .Values.global.ingress.hostname }}
+      host: {{ .Values.global.ingress.hostname }}
+{{- end }}            
+{{- end }}
+
+---
+

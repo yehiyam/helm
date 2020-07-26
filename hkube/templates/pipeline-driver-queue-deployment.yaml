@@ -1,0 +1,66 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pipeline-driver-queue
+  labels:
+    app: pipeline-driver-queue
+    group: {{ .Values.labels.group.value }}
+    core: "true"
+    metrics-group: pipeline-driver-queue
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app: pipeline-driver-queue
+  template:
+    metadata:
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/configmaps/pipeline-driver-queue-cm.yaml") . | sha256sum }}
+      labels:
+        app: pipeline-driver-queue
+        group: {{ .Values.labels.group.value }}
+    spec:
+      containers:
+        - name: pipeline-driver-queue
+          image: "{{ .Values.global.registry }}{{ index .Values "pipeline_driver_queue" "image" "repository" }}:{{ index .Values "pipeline_driver_queue" "image" "tag" }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          resources:
+{{ toYaml .Values.pipeline_driver_queue.resources | indent 12 }} 
+          ports:
+            - name: http
+              containerPort: {{ index .Values "pipeline_driver_queue" "env" "metric_port" }}
+              protocol: TCP
+          env:
+            - name: NODE_ENV
+              valueFrom:
+                configMapKeyRef:
+                  name: pipeline-driver-queue-configmap
+                  key: NODE_ENV
+            - name: HKUBE_LOG_LEVEL
+              valueFrom:
+                configMapKeyRef:
+                  name: pipeline-driver-queue-configmap
+                  key: KUBE_LOG_LEVEL
+            - name: METRICS_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: pipeline-driver-queue-configmap
+                  key: METRICS_PORT
+            - name: CHECK_QUEUE_INTERVAL
+              valueFrom:
+                configMapKeyRef:
+                  name: pipeline-driver-queue-configmap
+                  key: CHECK_QUEUE_INTERVAL
+{{- if .Values.global.isPrivileged }}            
+            - name: JAEGER_AGENT_SERVICE_HOST
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.hostIP
+{{- else if .Values.jaeger.external_agent_address }}
+            - name: JAEGER_AGENT_SERVICE_HOST
+              value: .Values.jaeger.external_agent_address
+{{- end }}    
+            - name: NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace

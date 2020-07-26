@@ -1,0 +1,21 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: algorithm-queue-svc
+  annotations:
+    prometheus.io/scrape: "true"
+  labels:
+    app: algorithm-queue-svc
+    chart: algorithm-queue-svc
+    release: {{ .Release.Name }}
+    heritage: {{ .Release.Service }}
+    group: {{ .Values.labels.group.value }}
+    core: "true"
+spec:
+  type: {{ index .Values "algorithm_queue_svc" "service" "type" }}
+  ports:
+    - port: {{ index .Values "algorithm_queue_svc" "env" "metric_port" }}
+      targetPort: {{ index .Values "algorithm_queue_svc" "env" "metric_port" }}
+      protocol: TCP
+  selector:
+    metrics-group: 'algorithm-queue'

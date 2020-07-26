@@ -1,0 +1,22 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: busybox
+  labels:
+    app: busybox
+    group: {{ .Values.labels.group.value }}
+    thirdparty: "true"
+spec:
+  containers:
+  - image: "{{ .Values.global.registry }}{{ index .Values "busybox" "image" "repository" }}:{{ index .Values "busybox" "image" "tag" }}"
+    command:
+      - sleep
+      - "3600"
+    imagePullPolicy: IfNotPresent
+    name: busybox
+    resources:
+      limits:
+        cpu: 50m
+        memory: 250Mi
+  terminationGracePeriodSeconds: 5  
+  restartPolicy: Always

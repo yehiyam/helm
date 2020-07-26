@@ -1,0 +1,20 @@
+kind: Service
+apiVersion: v1
+metadata:
+  name: pipeline-driver
+  annotations:
+    prometheus.io/scrape: "true"
+  labels:
+    app: pipeline-driver
+    group: {{ .Values.labels.group.value }}
+    core: "true"
+    metrics: "true"
+spec:
+  selector:
+    group: hkube
+    metrics-group: pipeline-drivers
+  clusterIP: None
+  ports:
+    - name: metrics
+      port: {{ .Values.pipeline_driver.env.metric_port }}
+      targetPort: {{ .Values.pipeline_driver.env.metric_port }}

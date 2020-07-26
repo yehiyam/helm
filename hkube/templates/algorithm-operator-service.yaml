@@ -1,0 +1,23 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: algorithm-operator
+  annotations:
+    prometheus.io/scrape: "true"
+  labels:
+    app: algorithm-operator
+    chart: algorithm-operator
+    release: {{ .Release.Name }}
+    heritage: {{ .Release.Service }}
+    group: {{ .Values.labels.group.value }}
+    core: "true"
+spec:
+  clusterIP: None
+  type: "{{ index .Values "algorithm_operator" "service" "type" }}"
+  ports:
+    - port: {{ index .Values "algorithm_operator" "env" "metric_port" }}
+      targetPort: {{ index .Values "algorithm_operator" "env" "metric_port" }}
+      protocol: TCP
+  selector:
+    app: algorithm-operator
+    release: {{ .Release.Name }}

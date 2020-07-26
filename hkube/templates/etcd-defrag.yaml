@@ -1,0 +1,25 @@
+{{- if .Values.etcd_defrag.enable }}
+apiVersion: batch/v1beta1
+kind: CronJob
+metadata:
+  name: etcd-defrag-cron
+  labels:
+    release: {{ .Release.Name }}
+    heritage: {{ .Release.Service }}
+    group: {{ .Values.labels.group.value }}
+    core: "true"
+spec:
+  schedule: {{ .Values.etcd_defrag.pattern | quote }} 
+  startingDeadlineSeconds: 200
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          serviceAccountName: clean-old-jobs
+          containers:
+          - name: etcd-defrag-cron
+            image: {{ .Values.global.registry }}{{ .Values.etcd_defrag.image.repository }}:{{ .Values.etcd_defrag.image.tag }}
+            resources:
+{{ toYaml .Values.etcd_defrag.resources | indent 14 }} 
+          restartPolicy: Never
+{{- end }}        

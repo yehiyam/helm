@@ -1,0 +1,158 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: task-executor-serviceaccount
+  labels:
+    group: {{ .Values.labels.group.value }}
+    app: task-executor
+    core: "true"
+---
+kind: Role
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  namespace: {{ .Release.Namespace }}
+  name: task-executor
+  labels:
+    group: {{ .Values.labels.group.value }}
+    app: task-executor
+    core: "true"
+rules:
+- apiGroups: [""]
+  resources: ["pods", "resourcequotas"]
+  verbs: ["get", "list", "watch"]
+- apiGroups: [""]
+  resources: ["configmaps"]
+  verbs: ["get"]
+- apiGroups: ["batch"]
+  resources: ["jobs"]
+  verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+---
+kind: RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: task-executor
+  namespace: {{ .Release.Namespace }}
+  labels:
+    group: {{ .Values.labels.group.value }}
+    app: task-executor
+    core: "true"
+subjects:
+- kind: ServiceAccount
+  name: task-executor-serviceaccount
+roleRef:
+  kind: Role
+  name: task-executor
+  apiGroup: rbac.authorization.k8s.io
+---
+{{- if not .Values.global.namespaced }}
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: task-executor-clusterrole
+  labels:
+    group: {{ .Values.labels.group.value }}
+    app: task-executor
+    core: "true"
+rules:
+- apiGroups: [""]
+  resources: ["nodes"]
+  verbs: ["get", "watch", "list"]
+- apiGroups: [""]
+  resources: ["pods"]
+  verbs: ["get", "list", "watch"]
+---
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: task-executor-clusterrolebinding
+  labels:
+    group: {{ .Values.labels.group.value }}
+    app: task-executor
+    core: "true"
+subjects:
+- kind: ServiceAccount
+  name: task-executor-serviceaccount
+  namespace: {{ .Release.Namespace }}
+roleRef:
+  kind: ClusterRole
+  name: task-executor-clusterrole
+  apiGroup: rbac.authorization.k8s.io
+---
+{{- end }}
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: worker-serviceaccount
+  labels:
+    group: {{ .Values.labels.group.value }}
+    app: task-executor
+    core: "true"    
+---
+kind: Role
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  namespace: {{ .Release.Namespace }}
+  name: worker-role
+  labels:
+    group: {{ .Values.labels.group.value }}
+    app: task-executor
+    core: "true"
+rules:
+- apiGroups: [""]
+  resources: ["pods"]
+  verbs: ["get"]
+- apiGroups: ["batch"]
+  resources: ["jobs"]
+  verbs: ["delete"]
+# - apiGroups: ["apiextensions.k8s.io"]
+#   resources: ["customresourcedefinitions"]
+#   verbs: ["get"]
+---
+kind: RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: worker-rolebinding
+  namespace: {{ .Release.Namespace }}
+  labels:
+    group: {{ .Values.labels.group.value }}
+    app: task-executor
+    core: "true"
+subjects:
+- kind: ServiceAccount
+  name: worker-serviceaccount
+roleRef:
+  kind: Role
+  name: worker-role
+  apiGroup: rbac.authorization.k8s.io
+---
+{{- if not .Values.global.namespaced }}
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: worker-clusterrole
+  labels:
+    group: {{ .Values.labels.group.value }}
+    app: task-executor
+    core: "true"
+rules:
+- apiGroups: ["apiextensions.k8s.io"]
+  resources: ["customresourcedefinitions"]
+  verbs: ["get"]
+---
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: worker-clusterrolebinding
+  labels:
+    group: {{ .Values.labels.group.value }}
+    app: task-executor
+    core: "true"
+subjects:
+- kind: ServiceAccount
+  name: worker-serviceaccount
+  namespace: {{ .Release.Namespace }}
+roleRef:
+  kind: ClusterRole
+  name: worker-clusterrole
+  apiGroup: rbac.authorization.k8s.io
+{{- end }}  

@@ -1,0 +1,15 @@
+kind: Service
+apiVersion: v1
+metadata:
+  name: simulator
+  labels:
+    app: simulator
+    group: {{ .Values.labels.group.value }}
+    core: "true"
+spec:
+  selector:
+    app: simulator
+  ports:
+    - protocol: TCP
+      port: {{ index .Values "simulator" "env" "metric_port" }}
+      targetPort: {{ index .Values "simulator" "env" "metric_port" }}
