@@ -459,7 +459,7 @@ worker: # +doc-gen:ignore
     metric_port: '3000'
   image:
     repository: hkube/worker
-    tag: v1.3.14
+    tag: v1.3.14-worker-fix-185848079
   metrics:
     port: 3001
   service:
